@@ -1,0 +1,10 @@
+* Schematics Netlist *
+
+
+
+X_U1         $N_0001 $N_0002 Sw_tClose PARAMS: tClose=0 ttran=1u Rclosed=0.01
++  Ropen=1Meg
+R_R2         $N_0003 $N_0001  10  
+R_R1         0 $N_0004  500  
+V_V3         $N_0003 0 10V
+T_T1         $N_0002 0 $N_0004 0 Z0=100 TD=10e-6  

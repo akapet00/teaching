@@ -1,0 +1,119 @@
+
+**** 01/17/19 16:02:25 *********** Evaluation PSpice (Nov 1999) **************
+
+ * C:\Users\Maja-FESB\Documents\Schematic3.sch
+
+
+ ****     CIRCUIT DESCRIPTION
+
+
+******************************************************************************
+
+
+
+
+* Schematics Version 9.1 - Web Update 1
+* Thu Jan 17 16:02:22 2019
+
+
+
+** Analysis setup **
+.tran 0 500e-6 0 100ns
+
+
+* From [PSPICE NETLIST] section of pspiceev.ini:
+.lib "nom.lib"
+
+.INC "Schematic3.net"
+
+**** INCLUDING Schematic3.net ****
+* Schematics Netlist *
+
+
+
+T_T1         $N_0001 0 $N_0002 0 Z0=100 TD=10e-6  
+V_V1         $N_0003 0 10V
+R_R1         $N_0003 $N_0004  10  
+R_R3         0 $N_0002  500  
+X_U1         $N_0004 $N_0001 Sw_tClose PARAMS: tClose=1 ttran=1u Rclosed=0.01
++  Ropen=1Meg
+
+**** RESUMING Schematic3.cir ****
+.INC "Schematic3.als"
+
+
+
+**** INCLUDING Schematic3.als ****
+* Schematics Aliases *
+
+.ALIASES
+T_T1            T1(A+=$N_0001 A-=0 B+=$N_0002 B-=0 )
+V_V1            V1(+=$N_0003 -=0 )
+R_R1            R1(1=$N_0003 2=$N_0004 )
+R_R3            R3(1=0 2=$N_0002 )
+X_U1            U1(1=$N_0004 2=$N_0001 )
+.ENDALIASES
+
+
+**** RESUMING Schematic3.cir ****
+.probe
+
+
+.END
+
+**** 01/17/19 16:02:25 *********** Evaluation PSpice (Nov 1999) **************
+
+ * C:\Users\Maja-FESB\Documents\Schematic3.sch
+
+
+ ****     Voltage Controlled Switch MODEL PARAMETERS
+
+
+******************************************************************************
+
+
+
+
+               X_U1.Smod       
+         RON     .01         
+        ROFF    1.000000E+06 
+         VON    1            
+        VOFF    0            
+
+
+**** 01/17/19 16:02:25 *********** Evaluation PSpice (Nov 1999) **************
+
+ * C:\Users\Maja-FESB\Documents\Schematic3.sch
+
+
+ ****     INITIAL TRANSIENT SOLUTION       TEMPERATURE =   27.000 DEG C
+
+
+******************************************************************************
+
+
+
+ NODE   VOLTAGE     NODE   VOLTAGE     NODE   VOLTAGE     NODE   VOLTAGE
+
+
+(X_U1.3)    0.0000 ($N_0001)     .0050                   ($N_0002)     .0050    
+
+($N_0003)   10.0000                   ($N_0004)    9.9999                   
+
+
+
+
+    VOLTAGE SOURCE CURRENTS
+    NAME         CURRENT
+
+    V_V1        -9.995E-06
+    X_U1.V1      0.000E+00
+
+    TOTAL POWER DISSIPATION   9.99E-05  WATTS
+
+
+
+          JOB CONCLUDED
+
+          TOTAL JOB TIME             .19
+
