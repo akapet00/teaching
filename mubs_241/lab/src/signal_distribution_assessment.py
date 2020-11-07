@@ -29,7 +29,7 @@ def ecdf(p_rx):
     return x, y
 
 
-def main():
+def run():
     with open('set_input.yaml', 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     # input config
@@ -85,4 +85,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run()

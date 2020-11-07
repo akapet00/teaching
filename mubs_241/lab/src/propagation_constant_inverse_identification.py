@@ -86,7 +86,7 @@ def loss_free_space_empirical(f, d, G_tx, G_rx, n=2):
     return 32.5 + (n*10*np.log10(f)) + (n*10*np.log10(d/1000)) - (G_tx + G_rx)
 
 
-def main():
+def run():
     with open('set_input.yaml', 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     # input config
@@ -174,4 +174,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    run()
