@@ -8,7 +8,7 @@ class HodgkinHuxley(object):
     Original implementation: 
     https://hodgkin-huxley-tutorial.readthedocs.io/en/latest/_static/Hodgkin%20Huxley.html
     """
-    def __init__(self, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L):
+    def __init__(self, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L, I_inj=None):
         """Constructor.
         
         Parameters
@@ -27,6 +27,8 @@ class HodgkinHuxley(object):
             Postassium (K) reversal potentials [mV]
         E_L : float
             Leak reversal potentials [mV]
+        I_inj : callable
+
         
         Returns
         -------
@@ -38,7 +40,12 @@ class HodgkinHuxley(object):
         self.g_L  = g_L 
         self.E_Na = E_Na
         self.E_K = E_K 
-        self.E_L = E_L 
+        self.E_L = E_L
+        if I_inj:
+            assert callable(I_inj), 'external current must be callable'
+            self.I_inj = I_inj
+        else:
+            self.I_inj = lambda t: 10*(t>100) - 10*(t>200) + 35*(t>300) - 35*(t>400)   
 
     def alpha_m(self, V_m):
         """Return the value of the alpha_m parameter.
@@ -175,26 +182,7 @@ class HodgkinHuxley(object):
         """
         return self.g_L * (V_m - self.E_L)
 
-    def I_inj(self, t):
-        """Return the external current values over simulation time, `t`.
-        
-        Parameters
-        ----------
-        t : float
-            Simulation time point
-            
-        Returns
-        -------
-        numpy.ndarray
-            External current density [uA/cm^2]:
-            step up to 10 uA/cm^2 at t>100
-            step down to 0 uA/cm^2 at t>200
-            step up to 35 uA/cm^2 at t>300
-            step down to 0 uA/cm^2 at t>400
-        """
-        return 10*(t>100) - 10*(t>200) + 35*(t>300) - 35*(t>400)
-
-    def ode_system(self, initial_conds, t):
+    def basic_HH(self, initial_conds, t):
         """Hodgkin Huxley model based on a set of four coupled ODEs.
         For details, go here: https://en.wikipedia.org/wiki/Hodgkin%E2%80%93Huxley_model#Voltage-gated_ion_channels
 
@@ -217,10 +205,9 @@ class HodgkinHuxley(object):
         dhdt = self.alpha_h(V_m)*(1.0-h) - self.beta_h(V_m)*h
         dndt = self.alpha_n(V_m)*(1.0-n) - self.beta_n(V_m)*n
         return (dV_mdt, dmdt, dhdt, dndt)
-    
-    def simulate(self, initial_conds, t, ret=False, viz=False):
-        """Hodgkin Huxley model based on a set of four coupled ODEs.
-        For details, go here: https://en.wikipedia.org/wiki/Hodgkin%E2%80%93Huxley_model#Voltage-gated_ion_channels
+
+    def induction_HH(self, initial_conds, t, a, b, k, k_1, k_2):
+        """Hodgkin Huxley model of neuron exposed to magnetic field from TMS coil.
 
         Parameters
         ----------
@@ -228,54 +215,90 @@ class HodgkinHuxley(object):
             Initial conditions for resting membrane potential and m, h and n activation variables
         t : numpy.ndarray
             A sequence of time points for which to solve for y
+        args : tuple
+            Additional arguments for the magnetic flux dynamics equation
+            
+        Returns
+        -------
+        tuple
+            Membrane potential and m, h adn n activation variables
+        """
+        V_m, phi, m, h, n = initial_conds
+
+        dV_mdt = (self.I_inj(t) - self.I_Na(V_m, m, h) - self.I_K(V_m, n) - self.I_L(V_m) - k*V_m*(a + 3*b*phi**2)) / self.C_m
+        dmdt = self.alpha_m(V_m)*(1.0-m) - self.beta_m(V_m)*m
+        dhdt = self.alpha_h(V_m)*(1.0-h) - self.beta_h(V_m)*h
+        dndt = self.alpha_n(V_m)*(1.0-n) - self.beta_n(V_m)*n
+        dphidt = k_1*V_m - k_2*phi
+        return (dV_mdt, dmdt, dhdt, dndt, dphidt)
+    
+    def simulate(self, initial_conds, t, induction_params=None, ret=False, viz=False):
+        """Run simulation.
+
+        Parameters
+        ----------
+        initial_conds : list
+            Initial conditions for resting membrane potential and m, h and n activation variables
+        t : numpy.ndarray
+            A sequence of time points for which to solve for y
+        induction_params : tuple, optional
+            Additional arguments for electrical induction.
+            If `induction_params` are specified, `induction_HH` is used.    
         ret : bool, optional
             If True, calculated electrical parameters will be returned
         viz : bool, optional
             If True, simulation will be visualized
-            
+        
         Returns
         -------
         tuple or None
             if `ret` is set to True, tuple containg membrane potential, activation functions and currents will be returned
         """
         self.t = t
-        sol = odeint(self.ode_system, initial_conds, self.t)
+        if induction_params:
+            sol = odeint(self.induction_HH, initial_conds, self.t, args=induction_params)
+        else:
+            sol = odeint(self.basic_HH, initial_conds, self.t)
         V_m = sol[:, 0]
         m = sol[:, 1]
         h = sol[:, 2]
         n = sol[:, 3]
+        if induction_params:
+            phi = sol[:, 4]
         ina = self.I_Na(V_m, m, h)
         ik = self.I_K(V_m, n)
         il = self.I_L(V_m)
         iinj = [self.I_inj(t) for t in self.t]
         
         if viz:
-            fig, ax = plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8, 10))
+            _, ax = plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8, 10))
             ax[0].plot(self.t, V_m)
-            ax[0].set_ylabel('$V$ [mV]')
+            ax[0].set_ylabel(r'$V$ [mV]')
             ax[0].grid()
 
-            ax[1].plot(self.t, ina, label='$I_{Na}$')
-            ax[1].plot(self.t, ik, label='$I_{K}$')
-            ax[1].plot(self.t, il, label='$I_{L}$')
-            ax[1].set_ylabel('$I$ [$\\mu$A]')
+            ax[1].plot(self.t, ina, label=r'$I_{Na}$')
+            ax[1].plot(self.t, ik, label=r'$I_{K}$')
+            ax[1].plot(self.t, il, label=r'$I_{L}$')
+            ax[1].set_ylabel(r'$I$ [$\mu$A]')
             ax[1].legend()
             ax[1].grid()
 
-            ax[2].plot(self.t, m, label='$m$')
-            ax[2].plot(self.t, h, label='$h$')
-            ax[2].plot(self.t, n, label='$n$')
-            ax[2].set_ylabel('Gating activation')
+            ax[2].plot(self.t, m, label=r'$m$')
+            ax[2].plot(self.t, h, label=r'$h$')
+            ax[2].plot(self.t, n, label=r'$n$')
+            ax[2].set_ylabel(r'Gating activation')
             ax[2].legend()
             ax[2].grid()
 
             ax[3].plot(self.t, iinj)
-            ax[3].set_xlabel('$t$ [ms]')
-            ax[3].set_ylabel('$I_{inj}$ [$\\mu$A $\cdot$ $cm^{-2}$]')
+            ax[3].set_xlabel(r'$t$ [ms]')
+            ax[3].set_ylabel(r'$I_{inj}$ [$\mu$A $\cdot$ $cm^{-2}$]')
             ax[3].grid()
 
             plt.tight_layout()
             plt.show()
         
         if ret:
+            if induction_params:
+                return (V_m, phi, m, h, n, ina, ik, il, iinj)
             return (V_m, m, h, n, ina, ik, il, iinj)
