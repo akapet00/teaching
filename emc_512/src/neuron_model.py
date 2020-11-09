@@ -5,10 +5,11 @@ from scipy.integrate import odeint
 
 class HodgkinHuxley(object):
     """Full Hodgkin-Huxley Model implementation.
-    Original implementation: 
-    https://hodgkin-huxley-tutorial.readthedocs.io/en/latest/_static/Hodgkin%20Huxley.html
+
+    For more details and original implementation, visit: 
+    https://hodgkin-huxley-tutorial.readthedocs.io/en/latest
     """
-    def __init__(self, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L, I_inj=None):
+    def __init__(self, C_m, g_Na, g_K, g_L, E_Na, E_K, E_L, I_inj=None, T=6.3):
         """Constructor.
         
         Parameters
@@ -27,9 +28,12 @@ class HodgkinHuxley(object):
             Postassium (K) reversal potentials [mV]
         E_L : float
             Leak reversal potentials [mV]
-        I_inj : callable
+        I_inj : callable, optional
+            Injected current [uA/cm^2]
+        T : float, optional
+            Temperature of the environment in which the neuron is
+            located [°C]
 
-        
         Returns
         -------
         None
@@ -46,96 +50,134 @@ class HodgkinHuxley(object):
             self.I_inj = I_inj
         else:
             self.I_inj = lambda t: 10*(t>100) - 10*(t>200) + 35*(t>300) - 35*(t>400)   
+        self.T = T
 
-    def alpha_m(self, V_m):
+    def temp_scaler(self, T):
+        """Return the value of the closing rate scaler for a given
+        temperature of the environment in which neuron is located.
+        
+        Parameters
+        ----------
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
+            
+        Returns
+        -------
+        float
+            closing rate scaler for a given temperature
+        """
+        return 3**((T-6.3)/10)
+
+    def alpha_m(self, V_m, T):
         """Return the value of the alpha_m parameter.
         
         Parameters
         ----------
         V_m : float
             Membrane potential [mV]
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
         float
             alpha_m value
         """
-        return 0.1 * (V_m+40.0) / (1.0-np.exp(-(V_m+40.0)/10.0))
+        return 0.1 * self.temp_scaler(T) * (V_m+40.0) \
+            / (1.0-np.exp(-(V_m+40.0)/10.0))
 
-    def beta_m(self, V_m):
+    def beta_m(self, V_m, T):
         """Return the value of the beta_m parameter.
         
         Parameters
         ----------
         V_m : float
             Membrane potential [mV]
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
         float
             beta_m value
         """
-        return 4.0 * np.exp(-(V_m+65.0)/18.0)
+        return 4.0 * self.temp_scaler(T) * np.exp(-(V_m+65.0)/18.0)
 
-    def alpha_h(self, V_m):
+    def alpha_h(self, V_m, T):
         """Return the value of the alpha_h parameter.
         
         Parameters
         ----------
         V_m : float
             Membrane potential [mV]
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
         float
             alpha_h value
         """
-        return 0.07 * np.exp(-(V_m+65.0)/20.0)
+        return 0.07 * self.temp_scaler(T) * np.exp(-(V_m+65.0)/20.0)
 
-    def beta_h(self, V_m):
+    def beta_h(self, V_m, T):
         """Return the value of the beta_h parameter.
         
         Parameters
         ----------
         V_m : float
             Membrane potential [mV]
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
         float
             beta_h value
         """
-        return 1.0 / (1.0+np.exp(-(V_m+35.0)/10.0))
+        return self.temp_scaler(T) / (1.0+np.exp(-(V_m+35.0)/10.0))
 
-    def alpha_n(self, V_m):
+    def alpha_n(self, V_m, T):
         """Return the value of the alpha_n parameter.
         
         Parameters
         ----------
         V_m : float
             Membrane potential [mV]
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
         float
             alpha_n value
         """
-        return 0.01 * (V_m+55.0) / (1.0-np.exp(-(V_m+55.0)/10.0))
+        return 0.01 * self.temp_scaler(T) * (V_m+55.0) \
+            / (1.0-np.exp(-(V_m+55.0)/10.0))
 
-    def beta_n(self, V_m):
+    def beta_n(self, V_m, T):
         """Return the value of the beta_n parameter.
         
         Parameters
         ----------
         V_m : float
             Membrane potential [mV]
+        T : float
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
         float
             beta_n value
         """
-        return 0.125 * np.exp(-(V_m+65)/80.0)
+        return 0.125 * self.temp_scaler(T) * np.exp(-(V_m+65)/80.0)
 
     def I_Na(self, V_m, m, h):
         """Return the Na ion channel current densitiy.
@@ -182,16 +224,22 @@ class HodgkinHuxley(object):
         """
         return self.g_L * (V_m - self.E_L)
 
-    def basic_HH(self, initial_conds, t):
+    def basic_HH(self, initial_conds, t, T):
         """Hodgkin Huxley model based on a set of four coupled ODEs.
-        For details, go here: https://en.wikipedia.org/wiki/Hodgkin%E2%80%93Huxley_model#Voltage-gated_ion_channels
+        
+        For details, go to:
+        https://en.wikipedia.org/wiki/Hodgkin-Huxley_model
 
         Parameters
         ----------
         initial_conds : list
-            Initial conditions for resting membrane potential and m, h and n activation variables
+            Initial conditions for resting membrane potential and m, h
+            and n activation variables
         t : numpy.ndarray
             A sequence of time points for which to solve for y
+        T : float, optional
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
@@ -200,13 +248,14 @@ class HodgkinHuxley(object):
         """
         V_m, m, h, n = initial_conds
 
-        dV_mdt = (self.I_inj(t) - self.I_Na(V_m, m, h) - self.I_K(V_m, n) - self.I_L(V_m)) / self.C_m
-        dmdt = self.alpha_m(V_m)*(1.0-m) - self.beta_m(V_m)*m
-        dhdt = self.alpha_h(V_m)*(1.0-h) - self.beta_h(V_m)*h
-        dndt = self.alpha_n(V_m)*(1.0-n) - self.beta_n(V_m)*n
+        dV_mdt = (self.I_inj(t) - self.I_Na(V_m, m, h) - self.I_K(V_m, n) \
+                - self.I_L(V_m)) / self.C_m
+        dmdt = self.alpha_m(V_m, T)*(1.0-m) - self.beta_m(V_m, T)*m
+        dhdt = self.alpha_h(V_m, T)*(1.0-h) - self.beta_h(V_m, T)*h
+        dndt = self.alpha_n(V_m, T)*(1.0-n) - self.beta_n(V_m, T)*n
         return (dV_mdt, dmdt, dhdt, dndt)
 
-    def induction_HH(self, initial_conds, t, a, b, k, k_1, k_2):
+    def induction_HH(self, initial_conds, t, a, b, k, k_1, k_2, T):
         """Hodgkin Huxley model of neuron exposed to magnetic field from TMS coil.
 
         Parameters
@@ -215,8 +264,11 @@ class HodgkinHuxley(object):
             Initial conditions for resting membrane potential and m, h and n activation variables
         t : numpy.ndarray
             A sequence of time points for which to solve for y
-        args : tuple
+        a, b, k, k_1, k_2 : float
             Additional arguments for the magnetic flux dynamics equation
+        T : float, optional
+            Temperature of the environment in which the neuron is
+            located [°C]
             
         Returns
         -------
@@ -225,20 +277,23 @@ class HodgkinHuxley(object):
         """
         V_m, phi, m, h, n = initial_conds
 
-        dV_mdt = (self.I_inj(t) - self.I_Na(V_m, m, h) - self.I_K(V_m, n) - self.I_L(V_m) - k*V_m*(a + 3*b*phi**2)) / self.C_m
-        dmdt = self.alpha_m(V_m)*(1.0-m) - self.beta_m(V_m)*m
-        dhdt = self.alpha_h(V_m)*(1.0-h) - self.beta_h(V_m)*h
-        dndt = self.alpha_n(V_m)*(1.0-n) - self.beta_n(V_m)*n
+        dV_mdt = (self.I_inj(t) - self.I_Na(V_m, m, h) - self.I_K(V_m, n) \
+            - self.I_L(V_m) - k*V_m*(a + 3*b*phi**2)) / self.C_m
+        dmdt = self.alpha_m(V_m, T)*(1.0-m) - self.beta_m(V_m, T)*m
+        dhdt = self.alpha_h(V_m, T)*(1.0-h) - self.beta_h(V_m, T)*h
+        dndt = self.alpha_n(V_m, T)*(1.0-n) - self.beta_n(V_m, T)*n
         dphidt = k_1*V_m - k_2*phi
         return (dV_mdt, dmdt, dhdt, dndt, dphidt)
     
-    def simulate(self, initial_conds, t, induction_params=None, ret=False, viz=False):
+    def simulate(self, initial_conds, t, induction_params=None,
+            ret=False, viz=False):
         """Run simulation.
 
         Parameters
         ----------
         initial_conds : list
-            Initial conditions for resting membrane potential and m, h and n activation variables
+            Initial conditions for resting membrane potential and m, h
+            and n activation variables
         t : numpy.ndarray
             A sequence of time points for which to solve for y
         induction_params : tuple, optional
@@ -252,13 +307,16 @@ class HodgkinHuxley(object):
         Returns
         -------
         tuple or None
-            if `ret` is set to True, tuple containg membrane potential, activation functions and currents will be returned
+            if `ret` is set to True, tuple containg membrane potential,
+            activation functions and currents will be returned
         """
         self.t = t
         if induction_params:
-            sol = odeint(self.induction_HH, initial_conds, self.t, args=induction_params)
+            sol = odeint(self.induction_HH, initial_conds, self.t,
+                args=(self.T, *induction_params))
         else:
-            sol = odeint(self.basic_HH, initial_conds, self.t)
+            sol = odeint(self.basic_HH, initial_conds, self.t, 
+                args=(self.T, ))
         V_m = sol[:, 0]
         m = sol[:, 1]
         h = sol[:, 2]
@@ -271,7 +329,8 @@ class HodgkinHuxley(object):
         iinj = [self.I_inj(t) for t in self.t]
         
         if viz:
-            _, ax = plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8, 10))
+            _, ax = plt.subplots(nrows=4, ncols=1, sharex=True,
+                figsize=(8, 10))
             ax[0].plot(self.t, V_m)
             ax[0].set_ylabel(r'$V$ [mV]')
             ax[0].grid()
