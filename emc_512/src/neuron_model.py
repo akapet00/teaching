@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import odeint
+import pprint
 
 
 class HodgkinHuxley(object):
@@ -255,7 +256,7 @@ class HodgkinHuxley(object):
         dndt = self.alpha_n(V_m, T)*(1.0-n) - self.beta_n(V_m, T)*n
         return (dV_mdt, dmdt, dhdt, dndt)
 
-    def induction_HH(self, initial_conds, t, a, b, k, k_1, k_2, T):
+    def induction_HH(self, initial_conds, t, T, a, b, k, k_1, k_2):
         """Hodgkin Huxley model of neuron exposed to magnetic field from TMS coil.
 
         Parameters
@@ -264,11 +265,11 @@ class HodgkinHuxley(object):
             Initial conditions for resting membrane potential and m, h and n activation variables
         t : numpy.ndarray
             A sequence of time points for which to solve for y
-        a, b, k, k_1, k_2 : float
-            Additional arguments for the magnetic flux dynamics equation
         T : float, optional
             Temperature of the environment in which the neuron is
             located [°C]
+        a, b, k, k_1, k_2 : float
+            Additional arguments for the magnetic flux dynamics equation
             
         Returns
         -------
