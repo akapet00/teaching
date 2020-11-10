@@ -327,7 +327,7 @@ class HodgkinHuxley(object):
         ina = self.I_Na(V_m, m, h)
         ik = self.I_K(V_m, n)
         il = self.I_L(V_m)
-        iinj = [self.I_inj(t) for t in self.t]
+        iinj = np.array([self.I_inj(t) for t in self.t])
         
         if viz:
             _, ax = plt.subplots(nrows=4, ncols=1, sharex=True,
