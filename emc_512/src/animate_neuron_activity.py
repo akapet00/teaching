@@ -8,9 +8,9 @@ from neuron_model import HodgkinHuxley
 
 def animation_1():
     C_m = 1.0       # membrane capacitance [F/cm^2]
-    g_Na = 120.0    # Sodium (Na) maximum conductances [mS/cm^2]
-    g_K  = 36.0     # Postassium (K) maximum conductances [mS/cm^2]
-    g_L  = 0.3      # Leak maximum conductances [mS/cm^2]
+    g_Na = 120.0    # Sodium (Na) maximum conductance [mS/cm^2]
+    g_K  = 36.0     # Postassium (K) maximum conductance [mS/cm^2]
+    g_L  = 0.3      # Leak maximum conductance [mS/cm^2]
     E_Na = 50.0     # Sodium (Na) reversal potentials [mV]
     E_K  = -77.0    # Postassium (K) reversal potentials [mV]
     E_L  = -54.387  # Leak reversal potentials [mV]
@@ -30,7 +30,7 @@ def animation_1():
         line, = axs[i].plot(0, 0)
         lines.append(line)
         axs[i].set_xlim(0, 1.05*t.max())
-        axs[i].set_ylim(1.1*V_m[0].min(), 1.1*V_m[i].max())
+        axs[i].set_ylim(1.1*V_m[i].min(), 1.2*V_m[i].max())
         axs[i].set_ylabel('$V_m$ [mV]')
         axs[i].legend([f'$V_m$ (t, T={T}°C)',])
         axs[i].grid()
@@ -48,9 +48,9 @@ def animation_1():
 
 def animation_2():
     C_m = 1.0       # membrane capacitance [F/cm^2]
-    g_Na = 120.0    # Sodium (Na) maximum conductances [mS/cm^2]
-    g_K  = 36.0     # Postassium (K) maximum conductances [mS/cm^2]
-    g_L  = 0.3      # Leak maximum conductances [mS/cm^2]
+    g_Na = 120.0    # Sodium (Na) maximum conductance [mS/cm^2]
+    g_K  = 36.0     # Postassium (K) maximum conductance [mS/cm^2]
+    g_L  = 0.3      # Leak maximum conductance [mS/cm^2]
     E_Na = 50.0     # Sodium (Na) reversal potentials [mV]
     E_K  = -77.0    # Postassium (K) reversal potentials [mV]
     E_L  = -54.387  # Leak reversal potentials [mV]
@@ -77,22 +77,22 @@ def animation_2():
     ax0.set_xlabel('$t$ [ms]')
     ax0.grid()
     ax1.set_xlim(0, 1.05*t.max())
-    ax1.set_ylim(1.1*iinj.min(), 1.1*iinj.max())
+    ax1.set_ylim(iinj.min()-0.1*iinj.max(), 1.1*iinj.max())
     ax1.set_ylabel(r'$I$ [$\mu A \cdot cm^{-2}$]')
     ax1.set_xlabel('$t$ [ms]')
     ax1.grid()
     ax20.set_xlim(1.1*V_m.min(), 1.1*V_m.max())
-    ax20.set_ylim(-0.1, 1.1*m.max())
+    ax20.set_ylim(m.min()-0.1, 1.1*m.max())
     ax20.set_ylabel('$m$')
     ax20.set_xlabel('$V_m$ [mV]')
     ax20.grid()
     ax21.set_xlim(1.1*V_m.min(), 1.1*V_m.max())
-    ax21.set_ylim(-0.1, 1.1*h.max())
+    ax21.set_ylim(h.min()-0.1, 1.1*h.max())
     ax21.set_ylabel('$h$')
     ax21.set_xlabel('$V_m$ [mV]')
     ax21.grid()
     ax22.set_xlim(1.1*V_m.min(), 1.1*V_m.max())
-    ax22.set_ylim(-0.1, 1.1*n.max())
+    ax22.set_ylim(n.min()-0.1, 1.1*n.max())
     ax22.set_ylabel('$n$')
     ax22.set_xlabel('$V_m$ [mV]')
     ax22.grid()
@@ -118,9 +118,10 @@ def animation_2():
     ax20.legend()
     ax21.legend()
     ax22.legend()
-    plt.show()
+    #plt.show()
     anim.save('Vm_and_Ixt_in_time.gif', writer='imagemagick', fps=30)
 
 
 if __name__ == "__main__":
+    animation_1()
     animation_2()
