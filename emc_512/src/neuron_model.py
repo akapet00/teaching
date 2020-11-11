@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.integrate import odeint
-import pprint
+from scipy.integrate import odeint, solve_ivp
 
 
 class HodgkinHuxley(object):
@@ -50,7 +49,7 @@ class HodgkinHuxley(object):
             assert callable(I_inj), 'external current must be callable'
             self.I_inj = I_inj
         else:
-            self.I_inj = lambda t: 10*(t>100) - 10*(t>200) + 35*(t>300) - 35*(t>400)   
+            self.I_inj = lambda t: 10*(t>100) - 10*(t>200) + 35*(t>300) - 35*(t>400)
         self.T = T
 
     def temp_scaler(self, T):
@@ -225,7 +224,7 @@ class HodgkinHuxley(object):
         """
         return self.g_L * (V_m - self.E_L)
 
-    def basic_HH(self, initial_conds, t, T):
+    def basic_HH(self, t, initial_conds, T):
         """Hodgkin Huxley model based on a set of four coupled ODEs.
         
         For details, go to:
@@ -233,11 +232,11 @@ class HodgkinHuxley(object):
 
         Parameters
         ----------
+        t : numpy.ndarray
+            A sequence of time points for which to solve for y
         initial_conds : list
             Initial conditions for resting membrane potential and m, h
             and n activation variables
-        t : numpy.ndarray
-            A sequence of time points for which to solve for y
         T : float, optional
             Temperature of the environment in which the neuron is
             located [°C]
@@ -256,15 +255,15 @@ class HodgkinHuxley(object):
         dndt = self.alpha_n(V_m, T)*(1.0-n) - self.beta_n(V_m, T)*n
         return (dV_mdt, dmdt, dhdt, dndt)
 
-    def induction_HH(self, initial_conds, t, T, a, b, k, k_1, k_2):
+    def induction_HH(self, t, initial_conds, T, a, b, k, k_1, k_2):
         """Hodgkin Huxley model of neuron exposed to magnetic field from TMS coil.
 
         Parameters
         ----------
-        initial_conds : list
-            Initial conditions for resting membrane potential and m, h and n activation variables
         t : numpy.ndarray
             A sequence of time points for which to solve for y
+        initial_conds : list
+            Initial conditions for resting membrane potential and m, h and n activation variables
         T : float, optional
             Temperature of the environment in which the neuron is
             located [°C]
@@ -287,7 +286,7 @@ class HodgkinHuxley(object):
         return (dV_mdt, dmdt, dhdt, dndt, dphidt)
     
     def simulate(self, initial_conds, t, induction_params=None,
-            ret=False, viz=False):
+            ret=False, viz=False, solver='odeint'):
         """Run simulation.
 
         Parameters
@@ -304,6 +303,8 @@ class HodgkinHuxley(object):
             If True, calculated electrical parameters will be returned
         viz : bool, optional
             If True, simulation will be visualized
+        solver : str, optional
+            Choose numerical solver between `odeint` and `solve_ivp` 
         
         Returns
         -------
@@ -312,18 +313,54 @@ class HodgkinHuxley(object):
             activation functions and currents will be returned
         """
         self.t = t
+        assert solver in ['odeint', 'solve_ivp'], 'Invalid solver type'
         if induction_params:
-            sol = odeint(self.induction_HH, initial_conds, self.t,
-                args=(self.T, *induction_params))
+            if solver == 'solve_ivp':
+                sol = solve_ivp(
+                    fun=self.induction_HH, 
+                    t_span=(0, self.t.size),
+                    y0=initial_conds,
+                    args=(self.T, *induction_params),
+                    method='RK45',
+                    t_eval=np.arange(0, 1, self.t.size),
+                    vectorized=True,
+                    )
+                V_m = sol.y[0]
+                m = sol.y[1]
+                h = sol.y[2]
+                n = sol.y[3]
+                phi = sol.y[4]
+            else:
+                sol = odeint(self.induction_HH, initial_conds, self.t,
+                    args=(self.T, *induction_params), tfirst=True)
+                V_m = sol[:, 0]
+                m = sol[:, 1]
+                h = sol[:, 2]
+                n = sol[:, 3]
+                phi = sol[:, 4]
         else:
-            sol = odeint(self.basic_HH, initial_conds, self.t, 
-                args=(self.T, ))
-        V_m = sol[:, 0]
-        m = sol[:, 1]
-        h = sol[:, 2]
-        n = sol[:, 3]
-        if induction_params:
-            phi = sol[:, 4]
+            if solver == 'solve_ivp':
+                sol = solve_ivp(
+                    fun=self.basic_HH, 
+                    t_span=(0, self.t.size),
+                    y0=initial_conds,
+                    args=(self.T,),
+                    method='RK45',
+                    t_eval=self.t,
+                    vectorized=True,
+                    )
+                V_m = sol.y[0]
+                m = sol.y[1]
+                h = sol.y[2]
+                n = sol.y[3]
+            else:
+                sol = odeint(self.basic_HH, initial_conds, self.t, 
+                    args=(self.T, ), tfirst=True)
+                V_m = sol[:, 0]
+                m = sol[:, 1]
+                h = sol[:, 2]
+                n = sol[:, 3]
+        
         ina = self.I_Na(V_m, m, h)
         ik = self.I_K(V_m, n)
         il = self.I_L(V_m)
