@@ -1,6 +1,64 @@
+from math import exp
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import odeint, solve_ivp
+
+
+def rk45(fun, y0, tspan, steps, args=()):
+    """Return the time and solution over time for system of ODEs using
+    Runge-Kutta numerical method of order 4.
+
+    This is a crude implementation in pure Python using Numpy. The most
+    obvious improvement is to use C, Cython or at least Numba for much
+    needed speed-up.
+
+    Parameters
+    ----------
+    fun : callable
+        System of ODEs
+    y0 : iterable
+        Initial conditions for `fun`
+    tspan : iterable
+        Start and the end time - borders of solution domain
+    steps : int
+        Total number of steps that `rk45` will perform
+    args : tuple, optional
+        Additional arguments for `fun`
+
+    Returns
+    -------
+    t : numpy.ndarray
+        Independent time variable - solution domain
+    y : numpy.ndarray
+        Solution for given system of ODEs in an array of size (N, M)
+        where N is the number of ODEs and M is the size of `t`
+    """
+    assert callable(fun), '`fun` must be callable'
+    try:
+        y0_iter = iter(y0)
+    except TypeError:
+        print(y0, 'is not iterable')
+    try:
+        tspan_iter = iter(tspan)
+    except TypeError:
+        print(tspan, 'is not iterable')
+    assert isinstance(steps, (int, )), '`steps` must be an integer'
+    n = len(y0)
+    t0 = tspan[0]
+    t1 = tspan[1]
+    step_size =(t1-t0)/steps
+    t = np.empty((steps+1, ))
+    y = np.empty((n, steps+1))
+    y[:, 0] = y0
+    for i in range(t.size - 1):
+        k1 = fun(t[i]+step_size, y[:,i], *args)
+        k2 = fun(t[i]+step_size/2.0, y[:,i]+step_size*k1/2, *args)
+        k3 = fun(t[i]+step_size/2.0, y[:,i]+step_size*k2/2, *args)
+        k4 = fun(t[i]+step_size, y[:,i]+step_size*k3, *args)
+        t[i+1] = t[i] + step_size
+        y[:,i+1] = y[:,i] + step_size*(k1 + 2.0*k2 + 2.0*k3 + k4) / 6.0
+    return t, y
 
 
 class HodgkinHuxley(object):
@@ -86,7 +144,7 @@ class HodgkinHuxley(object):
             alpha_m value
         """
         return 0.1 * self.temp_scaler(T) * (V_m+40.0) \
-            / (1.0-np.exp(-(V_m+40.0)/10.0))
+            / (1.0-exp(-(V_m+40.0)/10.0))
 
     def beta_m(self, V_m, T):
         """Return the value of the beta_m parameter.
@@ -104,7 +162,7 @@ class HodgkinHuxley(object):
         float
             beta_m value
         """
-        return 4.0 * self.temp_scaler(T) * np.exp(-(V_m+65.0)/18.0)
+        return 4.0 * self.temp_scaler(T) * exp(-(V_m+65.0)/18.0)
 
     def alpha_h(self, V_m, T):
         """Return the value of the alpha_h parameter.
@@ -122,7 +180,7 @@ class HodgkinHuxley(object):
         float
             alpha_h value
         """
-        return 0.07 * self.temp_scaler(T) * np.exp(-(V_m+65.0)/20.0)
+        return 0.07 * self.temp_scaler(T) * exp(-(V_m+65.0)/20.0)
 
     def beta_h(self, V_m, T):
         """Return the value of the beta_h parameter.
@@ -140,7 +198,7 @@ class HodgkinHuxley(object):
         float
             beta_h value
         """
-        return self.temp_scaler(T) / (1.0+np.exp(-(V_m+35.0)/10.0))
+        return self.temp_scaler(T) / (1.0+exp(-(V_m+35.0)/10.0))
 
     def alpha_n(self, V_m, T):
         """Return the value of the alpha_n parameter.
@@ -159,7 +217,7 @@ class HodgkinHuxley(object):
             alpha_n value
         """
         return 0.01 * self.temp_scaler(T) * (V_m+55.0) \
-            / (1.0-np.exp(-(V_m+55.0)/10.0))
+            / (1.0-exp(-(V_m+55.0)/10.0))
 
     def beta_n(self, V_m, T):
         """Return the value of the beta_n parameter.
@@ -177,7 +235,7 @@ class HodgkinHuxley(object):
         float
             beta_n value
         """
-        return 0.125 * self.temp_scaler(T) * np.exp(-(V_m+65)/80.0)
+        return 0.125 * self.temp_scaler(T) * exp(-(V_m+65)/80.0)
 
     def I_Na(self, V_m, m, h):
         """Return the Na ion channel current densitiy.
@@ -253,7 +311,7 @@ class HodgkinHuxley(object):
         dmdt = self.alpha_m(V_m, T)*(1.0-m) - self.beta_m(V_m, T)*m
         dhdt = self.alpha_h(V_m, T)*(1.0-h) - self.beta_h(V_m, T)*h
         dndt = self.alpha_n(V_m, T)*(1.0-n) - self.beta_n(V_m, T)*n
-        return (dV_mdt, dmdt, dhdt, dndt)
+        return np.array([dV_mdt, dmdt, dhdt, dndt])
 
     def induction_HH(self, t, initial_conds, T, a, b, k, k_1, k_2):
         """Hodgkin Huxley model of neuron exposed to magnetic field from TMS coil.
@@ -283,7 +341,7 @@ class HodgkinHuxley(object):
         dhdt = self.alpha_h(V_m, T)*(1.0-h) - self.beta_h(V_m, T)*h
         dndt = self.alpha_n(V_m, T)*(1.0-n) - self.beta_n(V_m, T)*n
         dphidt = k_1*V_m - k_2*phi
-        return (dV_mdt, dmdt, dhdt, dndt, dphidt)
+        return np.array([dV_mdt, dmdt, dhdt, dndt, dphidt])
     
     def simulate(self, initial_conds, t, induction_params=None,
             ret=False, viz=False, solver='odeint'):
@@ -313,12 +371,12 @@ class HodgkinHuxley(object):
             activation functions and currents will be returned
         """
         self.t = t
-        assert solver in ['odeint', 'solve_ivp'], 'Invalid solver type'
+        assert solver in ['odeint', 'solve_ivp', 'rk45'], 'Invalid solver'
         if induction_params:
             if solver == 'solve_ivp':
                 sol = solve_ivp(
                     fun=self.induction_HH, 
-                    t_span=(0, self.t.size),
+                    t_span=(t[0], t[-1]),
                     y0=initial_conds,
                     args=(self.T, *induction_params),
                     method='RK45',
@@ -330,7 +388,7 @@ class HodgkinHuxley(object):
                 h = sol.y[2]
                 n = sol.y[3]
                 phi = sol.y[4]
-            else:
+            elif solver == 'odeint':
                 sol = odeint(self.induction_HH, initial_conds, self.t,
                     args=(self.T, *induction_params), tfirst=True)
                 V_m = sol[:, 0]
@@ -338,11 +396,23 @@ class HodgkinHuxley(object):
                 h = sol[:, 2]
                 n = sol[:, 3]
                 phi = sol[:, 4]
+            else:
+                _, sol= rk45(
+                    fun=self.induction_HH,
+                    y0=initial_conds,
+                    tspan=(t[0], t[-1]),
+                    steps=t.size-1,
+                    args=(self.T, *induction_params))
+                V_m = sol[0, :]
+                m = sol[1, :]
+                h = sol[2, :]
+                n = sol[3, :]
+                phi = sol[4, :]
         else:
             if solver == 'solve_ivp':
                 sol = solve_ivp(
                     fun=self.basic_HH, 
-                    t_span=(0, self.t.size),
+                    t_span=(t[0], t[-1]),
                     y0=initial_conds,
                     args=(self.T,),
                     method='RK45',
@@ -353,13 +423,24 @@ class HodgkinHuxley(object):
                 m = sol.y[1]
                 h = sol.y[2]
                 n = sol.y[3]
-            else:
+            elif solver == 'odeint':
                 sol = odeint(self.basic_HH, initial_conds, self.t, 
                     args=(self.T, ), tfirst=True)
                 V_m = sol[:, 0]
                 m = sol[:, 1]
                 h = sol[:, 2]
                 n = sol[:, 3]
+            else:
+                _, sol= rk45(
+                    fun=self.basic_HH,
+                    y0=initial_conds,
+                    tspan=(t[0], t[-1]),
+                    steps=t.size-1,
+                    args=(self.T, ))
+                V_m = sol[0, :]
+                m = sol[1, :]
+                h = sol[2, :]
+                n = sol[3, :]
         
         ina = self.I_Na(V_m, m, h)
         ik = self.I_K(V_m, n)
