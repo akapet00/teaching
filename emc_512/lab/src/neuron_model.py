@@ -376,7 +376,7 @@ class HodgkinHuxley(object):
             if solver == 'solve_ivp':
                 sol = solve_ivp(
                     fun=self.induction_HH, 
-                    t_span=(t[0], t[-1]),
+                    t_span=(self.t[0], self.t[-1]),
                     y0=initial_conds,
                     args=(self.T, *induction_params),
                     method='RK45',
@@ -400,8 +400,8 @@ class HodgkinHuxley(object):
                 _, sol= rk45(
                     fun=self.induction_HH,
                     y0=initial_conds,
-                    tspan=(t[0], t[-1]),
-                    steps=t.size-1,
+                    tspan=(self.t[0], self.t[-1]),
+                    steps=self.t.size-1,
                     args=(self.T, *induction_params))
                 V_m = sol[0, :]
                 m = sol[1, :]
@@ -412,7 +412,7 @@ class HodgkinHuxley(object):
             if solver == 'solve_ivp':
                 sol = solve_ivp(
                     fun=self.basic_HH, 
-                    t_span=(t[0], t[-1]),
+                    t_span=(self.t[0], self.t[-1]),
                     y0=initial_conds,
                     args=(self.T,),
                     method='RK45',
@@ -434,8 +434,8 @@ class HodgkinHuxley(object):
                 _, sol= rk45(
                     fun=self.basic_HH,
                     y0=initial_conds,
-                    tspan=(t[0], t[-1]),
-                    steps=t.size-1,
+                    tspan=(self.t[0], self.t[-1]),
+                    steps=self.t.size-1,
                     args=(self.T, ))
                 V_m = sol[0, :]
                 m = sol[1, :]
