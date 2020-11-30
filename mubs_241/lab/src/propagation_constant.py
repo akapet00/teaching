@@ -67,7 +67,7 @@ def RMSE(y_true, y_pred):
     return float(np.sqrt(np.mean((y_true - y_pred)**2)))
 
 
-def loss_free_space_empirical(f, d, G_tx, G_rx, n=2):
+def loss_free_space_empirical(f, d, G_tx, G_rx):
     """Return the loss in free space in dB.
 
     Parameters
@@ -80,10 +80,8 @@ def loss_free_space_empirical(f, d, G_tx, G_rx, n=2):
         tx antenna gain in dBi
     G_rx : float
         rx antenna gain in dBi
-    n : int, optional
-        propagation constant, by default is setto 2 for free space
     """
-    return 32.5 + (n*10*np.log10(f)) + (n*10*np.log10(d/1000)) - (G_tx + G_rx)
+    return 32.5 + (20*np.log10(f)) + (20*np.log10(d/1000)) - (G_tx + G_rx)
 
 
 def run():
@@ -131,7 +129,7 @@ def run():
                         + (popt[2] - gof[2])
 
     # calculating free space approx. loss vs empirical loss
-    a_fs = loss_free_space_empirical(f, d, g_tx, g_rx, np.abs(n))
+    a_fs = loss_free_space_empirical(f, d, g_tx, g_rx)
     a_emp = p_tx - p_rx
     a_rmse = RMSE(a_emp, a_fs)
 
