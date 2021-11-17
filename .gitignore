@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # hide EMC lab solutions
-emc_512/lab/Python/*sol.ipynb
+*.sol.ipynb
