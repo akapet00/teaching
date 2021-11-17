@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# hide EMC lab solutions
+emc_512/lab/Python/*sol.ipynb
