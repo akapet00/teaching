@@ -3,19 +3,26 @@
 % The noisy, modulated data is plotted in a constellation diagram.
 % Numerical results and plot may vary due to the random input data.
 
-M = 16;  % Alphabet size, 16-QAM
+% Set alphabet size for 16-QAM
+M = 16;
 x = randi([0 M-1],5000,1);
 
+% Initialize constellation diagram
 cpts = qammod(0:M-1,M);
 constDiag = comm.ConstellationDiagram('ReferenceConstellation',cpts, ...
     'XLimits',[-4 4],'YLimits',[-4 4]);
 
-% Apply 16-QAM modulation and transmit signal through an AWGN channel.
+% Apply 16-QAM modulation
 y = qammod(x,M);
-ynoisy = awgn(y,15,'measured');
 
-% Demodulate ynoisy to recover the message and check the symbol error rate.
+% Transmit signal through an AWGN channel with SNR set to 15 and SIGPOWER
+% defined as 'measured'
+ynoisy = awgn(y,50,'measured');
+
+% Demodulate ynoisy to recover the message
 z = qamdemod(ynoisy,M);
+
+% Check the symbol error rate
 [num,rt] = symerr(x,z);
 
 % Create constellation diagram from noisy data. The signal reference
