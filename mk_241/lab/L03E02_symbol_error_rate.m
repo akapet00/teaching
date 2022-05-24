@@ -17,7 +17,7 @@ y = qammod(x,M);
 
 % Transmit signal through an AWGN channel with SNR set to 15 and SIGPOWER
 % defined as 'measured'
-ynoisy = awgn(y,50,'measured');
+ynoisy = awgn(y,15,'measured');
 
 % Demodulate ynoisy to recover the message
 z = qamdemod(ynoisy,M);
