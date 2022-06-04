@@ -11,7 +11,7 @@
 %% Predict Modulation Type Using CNN
 
 % The trained CNN should be able to recognize 8 digital and 3 analog
-% modulation types: BPSK, BPSK, 8-PSK, 16-QAM, 64-QAM, PAM4, GFSK, CPFSK,
+% modulation types: BPSK, QPSK, 8-PSK, 16-QAM, 64-QAM, PAM4, GFSK, CPFSK,
 % B-FM, DSB-AM, SSB-AM.
 % Your first task is to create a 'modulationTypes' categorical variable and
 % fill it with names of each modulation type to be classified:
