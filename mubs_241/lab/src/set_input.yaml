@@ -11,4 +11,4 @@ rx_power_to_distance:
   stderr_power: !!python/list []
 degree: 1                       # the degree of polynomial fit
 additional_info: true           # calculate goodness-of-fit depending on the degrees
-save_fig: false                 # save figure
+save_fig: true                  # save figure
